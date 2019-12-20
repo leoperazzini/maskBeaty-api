@@ -19,6 +19,6 @@ const Route = use("Route");
 Route.on("/").render("welcome");
 
 Route.group(() => {
-  Route.get("/merge/mask", "ImageController.testImage");
-  Route.post("/merge/mask", "ImageController.index");
+  Route.get("/merged/mask", "ImageController.returnImageMergedWithMask");
+  Route.post("/merge/mask", "ImageController.receiveImageToMergeWithMask");
 }).prefix("image");

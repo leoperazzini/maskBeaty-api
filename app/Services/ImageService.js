@@ -2,49 +2,82 @@
 const mergeImages = use("merge-images-v2");
 const Canvas = use("canvas");
 const Helpers = use("Helpers");
-const fs = use("fs");
 var Clipper = use("image-clipper");
 Clipper.configure("canvas", Canvas);
 
-class ImageService {
-  async mergeTwoImages({ id, x = 0, y = 0, width, height }) {
-    /*     Jimp.read(
-      Helpers.publicPath("uploads/photo-from-cellphone.jpg"),
-      (err, img) => {
-        if (err) throw err;
-        img
-          .resize(360, 686.6666666666666) // resize
-          .quality(100) // set JPEG qualityb W
-          .write(Helpers.publicPath("uploads/" + id + ".jpg")); // save
-      }
-    ); */
+const FileService = require("./FileService");
 
-    Clipper(Helpers.publicPath("uploads/photo-from-cellphone.jpg"), function() {
-      this.crop(x, y, width, height)
-        .quality(100)
-        .toFile(Helpers.publicPath("uploads/" + id + ".jpg"), function() {});
+class ImageService {
+  async getImageMergedWithMask({
+    id,
+    x = 0,
+    y = 0,
+    width = 1000,
+    height = 1000
+  }) {
+    await this.clipperImage({
+      pathImageToClipper: "uploads/" + id + ".jpg",
+      pathImageClipped: "uploads/" + id + "_clipped.jpg",
+      x,
+      y,
+      width,
+      height
     });
 
+    const base64 = await this.mergeTwoImages({
+      id,
+      pathImageOne: "uploads/" + id + "_clipped.jpg",
+      pathImageTwo: "images/mask.png"
+    });
+
+    await this.saveImageMerged({
+      base64,
+      pathToSave: "uploads/" + id + "_merged.png"
+    });
+
+    return base64;
+  }
+
+  async clipperImage({
+    pathImageToClipper,
+    pathImageClipped,
+    x = 0,
+    y = 0,
+    width,
+    height
+  }) {
+    return new Promise((resolve, reject) => {
+      try {
+        Clipper(Helpers.publicPath(pathImageToClipper), function() {
+          this.quality(100).toFile(
+            Helpers.publicPath(pathImageClipped),
+            function() {
+              resolve();
+            }
+          );
+        });
+      } catch (err) {
+        reject();
+      }
+    });
+  }
+
+  async mergeTwoImages({ pathImageOne, pathImageTwo }) {
     const base64 = await mergeImages(
-      [
-        Helpers.publicPath("uploads/photo-from-cellphone.jpg"),
-        Helpers.publicPath("images/mask.png")
-      ],
+      [Helpers.publicPath(pathImageOne), Helpers.publicPath(pathImageTwo)],
       { Canvas }
     );
 
+    return base64;
+  }
+
+  async saveImageMerged({ base64, pathToSave }) {
     let base64Image = base64.split(";base64,").pop();
 
-    fs.writeFile(
-      Helpers.publicPath("uploads/" + id + "teste.png"),
+    FileService.moveFileBase64ToPath({
       base64Image,
-      { encoding: "base64" },
-      function(err) {
-        console.log("File created");
-      }
-    );
-
-    return base64;
+      pathToUpload: pathToSave
+    });
   }
 }
 
